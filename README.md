@@ -6,33 +6,6 @@ A production-grade API gateway service in TypeScript (Node.js/Express) providing
 
 ![Gateway Dashboard Simulator](architecture-dashboard.png)
 
-```mermaid
-flowchart TD
-    Client[Client] --> Gateway[API Gateway (Node.js)]
-    
-    subgraph Gateway Core
-        Gateway --> Limiter[Rate Limiter]
-        Limiter --> |Check| Redis[(Redis)]
-        Limiter --> CB[Circuit Breaker]
-        CB --> |Check| Redis
-    end
-    
-    subgraph Fallback / Backpressure
-        CB -.-> |Open / Overloaded| KafkaQ[Kafka 'pending-requests']
-        KafkaQ --> Worker[Consumer Worker]
-        Worker --> |Retry| Downstream
-    end
-    
-    subgraph Observability
-        Gateway --> |Emit| MetricsBus((Event Bus))
-        MetricsBus --> WS[WebSocket Server]
-        WS --> Dashboard[Live Dashboard]
-    end
-    
-    CB --> |Closed / Capacity OK| Downstream[Mock Downstream API]
-    
-    Gateway --> |Read Config| PG[(PostgreSQL)]
-```
 
 ## Features
 - **Rate Limiting (Redis Lua scripts)**: Token Bucket and Sliding Window Counter algorithms ensure atomic checks under concurrency. Configurations are stored in Postgres and hot-reloaded into an in-memory cache.
