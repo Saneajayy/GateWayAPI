@@ -197,17 +197,28 @@ app.use(
 );
 
 async function startServer() {
-  try {
-    await setupDatabase();
-    await initKafka();
-    const server = app.listen(PORT, () => {
-      console.log(`Gateway listening on port ${PORT}`);
-      console.log(`Proxying requests to ${DOWNSTREAM_URL}`);
-    });
-    setupDashboardSockets(server);
-  } catch (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
+  let retries = 10;
+  while (retries > 0) {
+    try {
+      console.log(`Starting server, checking dependencies... (${retries} retries left)`);
+      await setupDatabase();
+      await initKafka();
+      const server = app.listen(PORT, () => {
+        console.log(`Gateway listening on port ${PORT}`);
+        console.log(`Proxying requests to ${DOWNSTREAM_URL}`);
+      });
+      setupDashboardSockets(server);
+      return; // success
+    } catch (err) {
+      console.error('Failed to connect to dependencies:', err);
+      retries--;
+      if (retries === 0) {
+        console.error('Max retries reached, shutting down.');
+        process.exit(1);
+      }
+      console.log('Retrying in 5 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
   }
 }
 

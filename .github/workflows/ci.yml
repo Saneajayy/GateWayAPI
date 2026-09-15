@@ -40,7 +40,12 @@ jobs:
       run: npx ts-node gateway/src/worker.ts &
       
     - name: Wait for apps to bind ports
-      run: sleep 10
+      run: |
+        echo "Waiting for Gateway on port 3000..."
+        while ! nc -z localhost 3000; do
+          sleep 2
+        done
+        echo "Gateway is up!"
       
     - name: Setup Tenants
       run: |

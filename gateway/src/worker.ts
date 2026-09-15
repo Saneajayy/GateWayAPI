@@ -112,22 +112,35 @@ async function processMessage(message: string) {
 }
 
 async function startWorker() {
-  await consumer.connect();
-  await consumer.subscribe({ topic: 'pending-requests', fromBeginning: false });
+  let retries = 10;
+  while (retries > 0) {
+    try {
+      console.log(`Starting worker, connecting to Kafka... (${retries} retries left)`);
+      await consumer.connect();
+      await consumer.subscribe({ topic: 'pending-requests', fromBeginning: false });
 
-  await consumer.run({
-    autoCommitThreshold: 10,
-    eachMessage: async ({ message }) => {
-      if (message.value) {
-        // Fire-and-forget — don't await full processMessage so KafkaJS keeps
-        // reading from the Kafka buffer while downstream calls are in flight.
-        // The semaphore caps actual in-flight downstream calls at WORKER_CONCURRENCY.
-        processMessage(message.value.toString()).catch(console.error);
+      await consumer.run({
+        autoCommitThreshold: 10,
+        eachMessage: async ({ message }) => {
+          if (message.value) {
+            processMessage(message.value.toString()).catch(console.error);
+          }
+        },
+      });
+
+      console.log(`Worker listening (concurrency: ${WORKER_CONCURRENCY})...`);
+      return;
+    } catch (err) {
+      console.error('Failed to start worker:', err);
+      retries--;
+      if (retries === 0) {
+        console.error('Max retries reached for worker, shutting down.');
+        process.exit(1);
       }
-    },
-  });
-
-  console.log(`Worker listening (concurrency: ${WORKER_CONCURRENCY})...`);
+      console.log('Retrying worker in 5 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
 }
 
-startWorker().catch(console.error);
+startWorker();
