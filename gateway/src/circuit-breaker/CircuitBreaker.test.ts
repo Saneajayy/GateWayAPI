@@ -70,9 +70,17 @@ describe('CircuitBreaker', () => {
     const halfOpenState = await cb.checkState(target);
     expect(halfOpenState).toBe('HALF_OPEN');
 
-    // Success -> CLOSED
-    const finalState = await cb.recordResult(target, true, config);
-    expect(finalState).toBe('CLOSED');
+    // Success -> HALF_OPEN (1)
+    let state = await cb.recordResult(target, true, config);
+    expect(state).toBe('HALF_OPEN');
+
+    // Success -> HALF_OPEN (2)
+    state = await cb.recordResult(target, true, config);
+    expect(state).toBe('HALF_OPEN');
+
+    // Success -> CLOSED (3)
+    state = await cb.recordResult(target, true, config);
+    expect(state).toBe('CLOSED');
   });
 
   it('should transition to HALF_OPEN after cooldown, and back to OPEN on failure', async () => {
