@@ -203,7 +203,7 @@ async function startServer() {
       console.log(`Starting server, checking dependencies... (${retries} retries left)`);
       await setupDatabase();
       await initKafka();
-      const server = app.listen(PORT, () => {
+      const server = app.listen(PORT as number, '0.0.0.0', () => {
         console.log(`Gateway listening on port ${PORT}`);
         console.log(`Proxying requests to ${DOWNSTREAM_URL}`);
       });
