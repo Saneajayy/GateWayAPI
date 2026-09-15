@@ -6,7 +6,7 @@
   "scripts": {
     "start:gateway": "ts-node gateway/src/index.ts",
     "start:mock": "ts-node mock-downstream/src/index.ts",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand --forceExit"
   },
   "keywords": [],
   "author": "",
