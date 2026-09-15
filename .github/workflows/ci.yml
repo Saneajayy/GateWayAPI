@@ -34,16 +34,28 @@ jobs:
       run: npm run start:mock &
       
     - name: Start Gateway
-      run: POSTGRES_PORT=5433 npm run start:gateway &
+      run: POSTGRES_PORT=5433 npm run start:gateway > gateway.log 2>&1 &
       
     - name: Start Worker
-      run: npx ts-node gateway/src/worker.ts &
+      run: npx ts-node gateway/src/worker.ts > worker.log 2>&1 &
       
     - name: Wait for apps to bind ports
       run: |
         echo "Waiting for Gateway on port 3000..."
+        timeout=60
         while ! nc -z localhost 3000; do
           sleep 2
+          timeout=$((timeout-2))
+          if [ $timeout -le 0 ]; then
+            echo "Gateway failed to start in time!"
+            echo "--- Gateway Logs ---"
+            cat gateway.log
+            echo "--- Worker Logs ---"
+            cat worker.log
+            echo "--- Docker Logs ---"
+            docker compose logs
+            exit 1
+          fi
         done
         echo "Gateway is up!"
       
