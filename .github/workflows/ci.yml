@@ -34,7 +34,7 @@ jobs:
       run: npm run start:mock &
       
     - name: Start Gateway
-      run: npm run start:gateway &
+      run: POSTGRES_PORT=5433 npm run start:gateway &
       
     - name: Start Worker
       run: npx ts-node gateway/src/worker.ts &
