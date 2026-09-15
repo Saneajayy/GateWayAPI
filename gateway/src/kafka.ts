@@ -28,5 +28,14 @@ export const admin = kafka.admin();
 export async function initKafka() {
   await producer.connect();
   await admin.connect();
-  console.log('Kafka Producer & Admin connected');
+  
+  const topics = await admin.listTopics();
+  if (!topics.includes('pending-requests')) {
+    console.log('Topic pending-requests not found. Creating it...');
+    await admin.createTopics({
+      topics: [{ topic: 'pending-requests', numPartitions: 1 }]
+    });
+  }
+  
+  console.log('Kafka Producer & Admin connected, topics verified.');
 }

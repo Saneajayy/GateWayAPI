@@ -122,7 +122,8 @@ async function startWorker() {
   let retries = 10;
   while (retries > 0) {
     try {
-      console.log(`Starting worker, connecting to Kafka... (${retries} retries left)`);
+      console.log(`Starting worker, checking topics... (${retries} retries left)`);
+      await initKafka(); // Ensures the topic exists before subscribing
       await consumer.connect();
       await consumer.subscribe({ topic: 'pending-requests', fromBeginning: false });
 
