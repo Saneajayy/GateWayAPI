@@ -43,7 +43,7 @@ jobs:
       run: |
         echo "Waiting for Gateway on port 3000..."
         timeout=60
-        while ! nc -z localhost 3000; do
+        while ! nc -z 127.0.0.1 3000; do
           sleep 2
           timeout=$((timeout-2))
           if [ $timeout -le 0 ]; then
