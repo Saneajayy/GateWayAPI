@@ -41,7 +41,7 @@ export function setupDashboardRoutes(app: express.Application) {
 
   app.post('/dashboard/api/fault', async (req, res) => {
     try {
-      await axios.post('http://localhost:4000/admin/fault', { state: 'failing' });
+      await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'failing' });
       res.json({ message: 'Downstream mock set to failing' });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -50,7 +50,7 @@ export function setupDashboardRoutes(app: express.Application) {
 
   app.post('/dashboard/api/recover', async (req, res) => {
     try {
-      await axios.post('http://localhost:4000/admin/fault', { state: 'healthy' });
+      await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'healthy' });
       res.json({ message: 'Downstream mock set to healthy' });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
