@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Gateway Dashboard</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 300;
+            background-color: #ffffff;
+            color: #111827;
+            margin: 0;
+            padding: 10px 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* 50/50 Split Layout */
+        .layout-wrapper {
+            display: flex;
+            height: 100%;
+            gap: 20px;
+        }
+
+        .left-pane {
+            flex: 5;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .right-pane {
+            flex: 5;
+            background-color: #0f0f11;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #333;
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+            margin: 10px 0;
+            font-size: 28px;
+        }
+
+        /* Dashboard Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #6b7280;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        .card .value {
+            font-size: 24px;
+            font-weight: 300;
+            margin: 5px 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .status-CLOSED { color: #16a34a; }
+        .status-OPEN { color: #dc2626; }
+        .status-HALF_OPEN { color: #d97706; }
+
+        #rps { color: #0284c7; }
+        #rejections { color: #db2777; }
+        #queue-depth { color: #7c3aed; }
+        #p50, #p95, #p99 { color: #4b5563; }
+
+        /* Terminal Window */
+        .mac-window {
+            margin-top: 20px;
+            background: #000000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mac-header {
+            background: #2d2d2d;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #111;
+        }
+
+        .mac-dots { display: flex; gap: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        .mac-title {
+            color: #9ca3af;
+            font-size: 13px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 400;
+        }
+
+        .reset-btn {
+            background: transparent;
+            color: #9ca3af;
+            border: 1px solid #4b5563;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 300;
+        }
+
+        .reset-btn:hover { background: #4b5563; color: #fff; }
+
+        .terminal-body {
+            padding: 15px 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+            color: #4ade80;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            font-weight: 300;
+        }
+
+        /* Controls */
+        .simulator-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-btn {
+            background: #ffffff;
+            color: #1f2937;
+            border: 1px solid #d1d5db;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 300;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover:not(:disabled) { background: #f3f4f6; }
+        .control-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .active-btn-glow {
+            border-color: #3b82f6;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Architecture Diagram Styles */
+        #diagram-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: repeat(3, 150px);
+            grid-auto-rows: min-content;
+            row-gap: 60px;
+            column-gap: 40px;
+            align-content: center;
+            justify-content: center;
+        }
+
+        .diagram-node {
+            position: relative;
+            z-index: 10;
+            border-radius: 8px;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: -apple-system, sans-serif;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        
+        .diagram-node .title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+        .diagram-node .subtitle { font-weight: 300; font-size: 11px; opacity: 0.8; }
+
+        /* Specific Nodes */
+        #node-k6 { background: #3f3f46; grid-column: 2; grid-row: 1; }
+        #node-fault { background: #7c2d12; grid-column: 3; grid-row: 1; }
+        #node-redis { background: #064e3b; grid-column: 1; grid-row: 2; }
+        #node-gateway { background: #4c1d95; grid-column: 2; grid-row: 2; }
+        #node-downstream { background: #064e3b; grid-column: 2; grid-row: 3; }
+        #node-kafka { background: #9a3412; grid-column: 3; grid-row: 3; position: relative; overflow: hidden; }
+        #node-worker { background: #3f3f46; grid-column: 3; grid-row: 4; }
+        #node-dashboard { background: #4c1d95; grid-column: 1 / 3; grid-row: 5; }
+
+        /* SVG Edges */
+        #svg-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .edge-path {
+            fill: none;
+            stroke: #71717a;
+            stroke-width: 3;
+            transition: stroke 0.3s;
+        }
+        .edge-dashed { stroke-dasharray: 6,6; }
+
+        /* Animations */
+        .pulse-redis {
+            border-color: #4ade80 !important;
+            box-shadow: 0 0 25px #4ade80 !important;
+        }
+        .state-open {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 25px #ef4444 !important;
+            background: #7f1d1d !important;
+        }
+        .state-half-open {
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 25px #f59e0b !important;
+        }
+        
+        .kafka-fill {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 0%;
+            background-color: rgba(255, 255, 255, 0.25);
+            transition: height 0.3s;
+            z-index: 0;
+        }
+        #node-kafka .title, #node-kafka .subtitle { z-index: 2; position: relative; }
+
+    </style>
+</head>
+
+<body>
+    <div class="layout-wrapper">
+        <!-- Left Pane: Dashboard & Controls -->
+        <div class="left-pane">
+            <h1>Gateway Live Analytics</h1>
+
+            <div class="grid">
+                <div class="card">
+                    <h3>Requests / Sec</h3>
+                    <div class="value" id="rps">0</div>
+                </div>
+                <div class="card">
+                    <h3>Rejections / Sec (429s)</h3>
+                    <div class="value" id="rejections">0</div>
+                </div>
+                <div class="card">
+                    <h3>Circuit Breaker</h3>
+                    <div class="value status-CLOSED" id="circuit-state">CLOSED</div>
+                </div>
+                <div class="card">
+                    <h3>Queue Depth</h3>
+                    <div class="value" id="queue-depth">0</div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3>p50 Latency (ms)</h3>
+                    <div class="value" id="p50">0</div>
+                </div>
+                <div class="card">
+                    <h3>p95 Latency (ms)</h3>
+                    <div class="value" id="p95">0</div>
+                </div>
+                <div class="card">
+                    <h3>p99 Latency (ms)</h3>
+                    <div class="value" id="p99">0</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <h2 style="color: #1f2937; font-weight: 400; margin-bottom: 5px; font-size: 20px;">Interactive Simulation</h2>
+                <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">
+                    Execute the sequence to inject a sudden burst of load, simulate a downstream outage, and watch the
+                    Circuit Breaker and Kafka Queue react in real-time on the graph.
+                </p>
+            </div>
+
+            <div class="simulator-controls" style="margin-bottom: 10px;">
+                <button class="control-btn" id="btn-tenant" onclick="runSequence('tenant')">1. Configure Tenant</button>
+                <button class="control-btn" id="btn-load" onclick="runSequence('load')" disabled>2. Simulate Traffic</button>
+                <button class="control-btn" id="btn-fault" onclick="runSequence('fault')" disabled>3. Inject Downstream Fault</button>
+                <button class="control-btn" id="btn-recover" onclick="runSequence('recover')" disabled>4. Recover Downstream</button>
+            </div>
+
+            <div class="mac-window">
+                <div class="mac-header">
+                    <div class="mac-dots">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                    <div class="mac-title"></div>
+                    <button class="reset-btn" onclick="runSequence('reset')" style="display: flex; align-items: center; gap: 5px;">
+                        <span style="font-size: 16px;">⟲</span> Restart Demo
+                    </button>
+                </div>
+                <div id="terminal" class="terminal-body">
+                    <div style="color: #64748b;">Welcome to Gateway API Interactive Simulator v1.0.0</div>
+                    <div style="color: #64748b;">Waiting for command sequence...</div>
+                    <div style="color: #64748b;">---------------------------------------------------</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Pane: Architecture Diagram -->
+        <div class="right-pane">
+            <div id="simulation-timer" style="position: absolute; top: 20px; left: 20px; color: #9ca3af; font-family: ui-monospace, monospace; font-size: 14px; z-index: 20; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 6px; border: 1px solid #333; display: none;">
+                T+ 0.0s
+            </div>
+            <div id="diagram-container">
+                <svg id="svg-layer">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+                            <polygon points="0 0, 5 2, 0 4" fill="#71717a" />
+                        </marker>
+                    </defs>
+                </svg>
+                <div id="node-k6" class="diagram-node">
+                    <div class="title">k6 load generator</div>
+                    <div class="subtitle">fires concurrent requests</div>
+                </div>
+                <div id="node-fault" class="diagram-node">
+                    <div class="title">Admin fault trigger</div>
+                    <div class="subtitle">toggles health state</div>
+                </div>
+                <div id="node-redis" class="diagram-node">
+                    <div class="title">Redis</div>
+                    <div class="subtitle">shared state</div>
+                </div>
+                <div id="node-gateway" class="diagram-node">
+                    <div class="title">API gateway</div>
+                    <div class="subtitle">rate limiter + circuit breaker</div>
+                </div>
+                <div id="node-downstream" class="diagram-node">
+                    <div class="title">Downstream service</div>
+                    <div class="subtitle">receives proxied calls</div>
+                </div>
+                <div id="node-kafka" class="diagram-node">
+                    <div class="kafka-fill" id="kafka-fill"></div>
+                    <div class="title">Kafka queue</div>
+                    <div class="subtitle">buffers when overloaded</div>
+                </div>
+                <div id="node-worker" class="diagram-node">
+                    <div class="title">Worker</div>
+                    <div class="subtitle">consumes & drains queue</div>
+                </div>
+                <div id="node-dashboard" class="diagram-node">
+                    <div class="title">Dashboard</div>
+                    <div class="subtitle">live metrics via WebSocket</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Terminal UI Logic
+        const term = document.getElementById('terminal');
+        const spinnerChars = ['-', '\\', '|', '/'];
+        let activeLoaders = {};
+
+        function getTime() {
+            return new Date().toISOString().split('T')[1].slice(0, 12);
+        }
+
+        function appendLine(id, text, color = '#4ade80') {
+            let line = document.getElementById(id);
+            if (!line) {
+                line = document.createElement('div');
+                line.id = id;
+                term.appendChild(line);
+            }
+            line.style.color = color;
+            line.innerText = text;
+            term.scrollTop = term.scrollHeight;
+            return line;
+        }
+
+        function startLoading(cmd) {
+            const id = 'cmd-' + Date.now();
+            const baseText = `[${getTime()}] $ gateway-cli exec ${cmd} ... `;
+            let i = 0;
+            appendLine(id, baseText + spinnerChars[0], '#e2e8f0');
+            activeLoaders[id] = setInterval(() => {
+                i = (i + 1) % spinnerChars.length;
+                appendLine(id, baseText + spinnerChars[i], '#e2e8f0');
+            }, 150);
+            return id;
+        }
+
+        function stopLoading(id, resultText, isError = false) {
+            if (activeLoaders[id]) {
+                clearInterval(activeLoaders[id]);
+                delete activeLoaders[id];
+            }
+            const line = document.getElementById(id);
+            if (line) {
+                const baseText = line.innerText.substring(0, line.innerText.lastIndexOf('... ') + 4);
+                line.innerText = baseText + resultText;
+                line.style.color = isError ? '#f87171' : '#4ade80';
+            }
+        }
+
+        // ==========================================
+        // Diagram Animation Engine (Orthogonal SVG)
+        // ==========================================
+        let currentCircuitState = 'CLOSED';
+        let currentQueueDepth = 0;
+        let currentRejections = 0;
+        let isSimulationRunning = false;
+        let drainInterval = null;
+
+        const pathData = {};
+
+        function getPoint(el, pos) {
+            const rect = el.getBoundingClientRect();
+            const parent = document.getElementById('diagram-container').getBoundingClientRect();
+            const x = rect.left - parent.left;
+            const y = rect.top - parent.top;
+            const w = rect.width;
+            const h = rect.height;
+            if (pos === 'top') return {x: x + w/2, y: y};
+            if (pos === 'bottom') return {x: x + w/2, y: y + h};
+            if (pos === 'left') return {x: x, y: y + h/2};
+            if (pos === 'right') return {x: x + w, y: y + h/2};
+            return {x: x + w/2, y: y + h/2}; 
+        }
+
+        function drawLine(edgeId, n1Id, p1Pos, n2Id, p2Pos, dashed = false, type = 'straight', isHidden = false) {
+            const n1 = document.getElementById(n1Id);
+            const n2 = document.getElementById(n2Id);
+            if(!n1 || !n2) return;
+
+            const p1 = getPoint(n1, p1Pos);
+            const p2 = getPoint(n2, p2Pos);
+            
+            // Offset slightly for arrowheads
+            if (p2Pos === 'top') p2.y -= 3;
+            if (p2Pos === 'bottom') p2.y += 3;
+            if (p2Pos === 'left') p2.x -= 3;
+            if (p2Pos === 'right') p2.x += 3;
+
+            let d = '';
+            if (type === 'vertical-mid') {
+                const midY = (p1.y + p2.y) / 2;
+                d = `M ${p1.x},${p1.y} L ${p1.x},${midY} L ${p2.x},${midY} L ${p2.x},${p2.y}`;
+            } else if (type === 'corner-v-h') {
+                d = `M ${p1.x},${p1.y} L ${p1.x},${p2.y} L ${p2.x},${p2.y}`;
+            } else if (type === 'corner-h-v') {
+                d = `M ${p1.x},${p1.y} L ${p2.x},${p1.y} L ${p2.x},${p2.y}`;
+            } else if (type === 'straight-offset-left') {
+                const offX = 20;
+                d = `M ${p1.x - offX},${p1.y} L ${p2.x - offX},${p2.y}`;
+            } else if (type === 'loop-right') {
+                const offsetX = Math.max(p1.x, p2.x) + 40;
+                d = `M ${p1.x},${p1.y} L ${offsetX},${p1.y} L ${offsetX},${p2.y} L ${p2.x},${p2.y}`;
+            } else {
+                d = `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`;
+            }
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('class', dashed ? 'edge-path edge-dashed' : 'edge-path');
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+            if (!isHidden) {
+                document.getElementById('svg-layer').appendChild(path);
+            }
+            
+            pathData[edgeId] = d;
+        }
+
+        function drawLines() {
+            // Keep defs
+            const svg = document.getElementById('svg-layer');
+            const defs = svg.querySelector('defs').cloneNode(true);
+            svg.innerHTML = '';
+            svg.appendChild(defs);
+            
+            // Draw Edges
+            drawLine('k6-gw', 'node-k6', 'bottom', 'node-gateway', 'top', false, 'vertical-mid');
+            drawLine('fault-gw', 'node-fault', 'bottom', 'node-gateway', 'top', false, 'vertical-mid');
+            drawLine('redis-gw', 'node-redis', 'right', 'node-gateway', 'left', false, 'straight');
+            drawLine('gw-ds', 'node-gateway', 'bottom', 'node-downstream', 'top', false, 'vertical-mid');
+            drawLine('gw-kafka', 'node-gateway', 'right', 'node-kafka', 'right', false, 'loop-right');
+            drawLine('kafka-wk', 'node-kafka', 'bottom', 'node-worker', 'top', false, 'straight');
+            drawLine('wk-ds', 'node-worker', 'left', 'node-downstream', 'bottom', true, 'corner-h-v');
+            drawLine('wk-dash', 'node-worker', 'bottom', 'node-dashboard', 'top', true, 'vertical-mid');
+            drawLine('gw-dash', 'node-gateway', 'bottom', 'node-dashboard', 'top', true, 'vertical-mid');
+            drawLine('gw-k6', 'node-gateway', 'top', 'node-k6', 'bottom', false, 'straight-offset-left', true);
+        }
+
+        window.addEventListener('resize', drawLines);
+        setTimeout(drawLines, 100);
+
+        function fireDot(edgeId, options = {}) {
+            const d = pathData[edgeId];
+            if (!d) return;
+
+            const ns = 'http://www.w3.org/2000/svg';
+            const path = document.createElementNS(ns, 'path');
+            
+            path.setAttribute('d', d);
+            path.setAttribute('fill', 'none');
+            
+            let color = options.trial ? '#f59e0b' : '#38bdf8';
+            if (options.reject) color = '#ef4444';
+            
+            path.setAttribute('stroke', color);
+            path.setAttribute('stroke-width', '4');
+            path.setAttribute('stroke-linecap', 'round');
+            path.style.filter = `drop-shadow(0 0 6px ${color})`;
+            
+            document.getElementById('svg-layer').appendChild(path);
+            
+            const length = path.getTotalLength();
+            // Scale beam length dynamically relative to path length (min 60px, up to 40% of path)
+            const dashLength = Math.max(60, length * 0.4); 
+            path.style.strokeDasharray = `${dashLength} ${length + dashLength}`;
+            
+            // Constant velocity: 2.5ms per pixel (so long lines take longer, short lines are fast)
+            const duration = options.duration || Math.max(400, length * 2.5);
+            
+            const animation = path.animate([
+                { strokeDashoffset: length },
+                { strokeDashoffset: -dashLength }
+            ], {
+                duration: duration,
+                easing: 'linear'
+            });
+            
+            animation.onfinish = () => path.remove();
+            
+            return duration; // Return exact computed duration so caller can chain perfectly!
+        }
+
+        let flowInterval = null;
+        function startFlow() {
+            if (flowInterval) clearInterval(flowInterval);
+            flowInterval = setInterval(() => {
+                if (!isSimulationRunning) {
+                    clearInterval(flowInterval);
+                    return;
+                }
+                
+                const dur1 = fireDot('k6-gw');
+                
+                // Chain the next animation EXACTLY when the first one reaches the end of the line
+                setTimeout(() => {
+                    if (currentRejections > 0) {
+                        fireDot('gw-k6', { reject: true });
+                    } else if (currentCircuitState === 'CLOSED') {
+                        fireDot('gw-ds');
+                    } else if (currentCircuitState === 'OPEN') {
+                        fireDot('gw-kafka');
+                        updateKafkaFill(Math.min(currentQueueDepth + 10, 5000));
+                    }
+                }, dur1);
+            }, 600); // 600ms constant interval for a beautiful steady stream
+        }
+
+        function updateKafkaFill(depth) {
+            currentQueueDepth = depth;
+            const maxExpected = 5000; 
+            const pct = Math.min((depth / maxExpected) * 100, 100);
+            document.getElementById('kafka-fill').style.height = `${pct}%`;
+        }
+
+        function updateButtons() {
+            document.getElementById('btn-tenant').classList.remove('active-btn-glow');
+            document.getElementById('btn-load').classList.remove('active-btn-glow');
+            document.getElementById('btn-fault').classList.remove('active-btn-glow');
+            document.getElementById('btn-recover').classList.remove('active-btn-glow');
+
+            if (currentCircuitState === 'CLOSED' && !isSimulationRunning) {
+                document.getElementById('btn-load').disabled = false;
+                document.getElementById('btn-load').classList.add('active-btn-glow');
+            }
+            if (isSimulationRunning) {
+                document.getElementById('btn-fault').disabled = false;
+                document.getElementById('btn-fault').classList.add('active-btn-glow');
+            }
+            if (currentCircuitState === 'OPEN') {
+                document.getElementById('btn-recover').disabled = false;
+                document.getElementById('btn-recover').classList.add('active-btn-glow');
+                document.getElementById('btn-fault').disabled = true;
+            }
+        }
+
+        // ==========================================
+        // Command Sequencing
+        // ==========================================
+        
+        let timerInterval = null;
+        let startTime = 0;
+        
+        function startTimer() {
+            const timerEl = document.getElementById('simulation-timer');
+            timerEl.style.display = 'block';
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                timerEl.innerText = `T+ ${elapsed.toFixed(1)}s`;
+            }, 100);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            stopTimer();
+            const timerEl = document.getElementById('simulation-timer');
+            timerEl.style.display = 'none';
+            timerEl.innerText = `T+ 0.0s`;
+        }
+
+        async function runSequence(cmd) {
+            if (cmd === 'reset') {
+                term.innerHTML = '<div style="color: #64748b;">--- Demo Reset Initiated ---</div>';
+                isSimulationRunning = false;
+                // Immediately stop all animation loops
+                if (flowInterval) { clearInterval(flowInterval); flowInterval = null; }
+                if (drainInterval) { clearInterval(drainInterval); drainInterval = null; }
+                // Instantly zero ALL visual state — don't wait for WebSocket
+                currentQueueDepth = 0;
+                currentRejections = 0;
+                currentCircuitState = 'CLOSED';
+                document.getElementById('queue-depth').innerText = '0';
+                document.getElementById('rps').innerText = '0';
+                document.getElementById('rejections').innerText = '0';
+                document.getElementById('circuit-state').innerText = 'CLOSED';
+                document.getElementById('circuit-state').className = 'value status-CLOSED';
+                document.getElementById('btn-load').disabled = true;
+                document.getElementById('btn-fault').disabled = true;
+                document.getElementById('btn-recover').disabled = true;
+                document.getElementById('node-gateway').className = 'diagram-node';
+                updateKafkaFill(0);
+                resetTimer();
+            }
+
+            const loaderId = startLoading(cmd);
+
+            if (cmd === 'tenant') {
+                const redisNode = document.getElementById('node-redis');
+                redisNode.classList.add('pulse-redis');
+                setTimeout(() => redisNode.classList.remove('pulse-redis'), 600);
+            } 
+            else if (cmd === 'load') {
+                isSimulationRunning = true;
+                startFlow();
+            }
+            else if (cmd === 'fault') {
+                currentCircuitState = 'OPEN';
+                document.getElementById('node-gateway').className = 'diagram-node state-open';
+                fireDot('gw-kafka');
+                setTimeout(() => fireDot('gw-kafka'), 100);
+            }
+            else if (cmd === 'recover') {
+                document.getElementById('btn-fault').disabled = true;
+            }
+            
+            updateButtons();
+
+            try {
+                const res = await fetch(`/dashboard/api/${cmd}`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    stopLoading(loaderId, `SUCCESS: ${data.message}`);
+                    if(cmd === 'tenant') {
+                        document.getElementById('btn-load').disabled = false;
+                        updateButtons();
+                    }
+                    if(cmd === 'load') {
+                        startTimer();
+                        // Keep simulation running for the duration of the traffic (50 seconds)
+                        setTimeout(() => {
+                            isSimulationRunning = false;
+                            stopTimer();
+                            updateButtons();
+                        }, 50000);
+                        updateButtons();
+                    }
+                } else {
+                    stopLoading(loaderId, `ERROR: ${data.error}`, true);
+                }
+            } catch (err) {
+                stopLoading(loaderId, `NETWORK ERROR: ${err.message}`, true);
+            }
+        }
+
+        // ==========================================
+        // WebSocket Logic
+        // ==========================================
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            
+            if (msg.type === 'summary') {
+                document.getElementById('rps').innerText = msg.data.rps;
+                document.getElementById('rejections').innerText = msg.data.rejections;
+                
+                currentRejections = msg.data.rejections;
+                
+                const cbEl = document.getElementById('circuit-state');
+                cbEl.innerText = msg.data.circuitState;
+                cbEl.className = 'value status-' + msg.data.circuitState;
+                
+                currentQueueDepth = msg.data.queueDepth;
+                document.getElementById('queue-depth').innerText = msg.data.queueDepth;
+                
+                document.getElementById('p50').innerText = msg.data.p50 || 0;
+                document.getElementById('p95').innerText = msg.data.p95 || 0;
+                document.getElementById('p99').innerText = msg.data.p99 || 0;
+                
+                syncVisualState(msg.data.circuitState, msg.data.queueDepth);
+            } else if (msg.type === 'circuit-state') {
+                const cbEl = document.getElementById('circuit-state');
+                cbEl.innerText = msg.data.state;
+                cbEl.className = 'value status-' + msg.data.state;
+                syncVisualState(msg.data.state, currentQueueDepth);
+            } else if (msg.type === 'queue-depth') {
+                currentQueueDepth = msg.data.depth;
+                document.getElementById('queue-depth').innerText = msg.data.depth;
+                syncVisualState(currentCircuitState, msg.data.depth);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            setTimeout(() => { location.reload(); }, 2000);
+        };
+
+        function syncVisualState(realState, realDepth) {
+            updateKafkaFill(realDepth);
+            const gatewayNode = document.getElementById('node-gateway');
+
+            if (realState === 'HALF_OPEN' && currentCircuitState !== 'HALF_OPEN') {
+                gatewayNode.className = 'diagram-node state-half-open';
+                const dur = fireDot('gw-ds', { trial: true }) || 800;
+                setTimeout(() => fireDot('gw-ds', { trial: true }), dur + 300);
+                setTimeout(() => fireDot('gw-ds', { trial: true }), dur * 2 + 600);
+            } 
+            else if (realState === 'OPEN') {
+                gatewayNode.className = 'diagram-node state-open';
+                if (drainInterval) { clearInterval(drainInterval); drainInterval = null; }
+            }
+            else if (realState === 'CLOSED') {
+                gatewayNode.className = 'diagram-node';
+                // Always try to drain whenever CLOSED and queue has items
+                if (realDepth > 0 && !drainInterval) {
+                    startDrainAnimation();
+                }
+            }
+
+            if (realDepth === 0 && drainInterval) {
+                clearInterval(drainInterval);
+                drainInterval = null;
+            }
+
+            currentCircuitState = realState;
+            updateButtons();
+        }
+
+        function startDrainAnimation() {
+            if (drainInterval) clearInterval(drainInterval);
+            drainInterval = setInterval(() => {
+                if (currentQueueDepth > 0) {
+                    const dur = fireDot('kafka-wk');
+                    setTimeout(() => {
+                        fireDot('wk-ds');
+                    }, dur);
+                } else {
+                    clearInterval(drainInterval);
+                    drainInterval = null;
+                }
+            }, 800);
+        }
+
+        document.getElementById('btn-tenant').classList.add('active-btn-glow');
+
+    </script>
+</body>
+
+</html>

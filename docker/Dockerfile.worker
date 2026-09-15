@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig.json ./
+
+RUN npm ci
+
+COPY gateway/ ./gateway/
+
+CMD ["npx", "ts-node", "gateway/src/worker.ts"]

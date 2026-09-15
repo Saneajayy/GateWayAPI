@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        
+    - name: Start backing services
+      run: docker compose up -d
+      
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run Unit Tests
+      run: npm test
+
+    - name: Start Mock Downstream
+      run: npm run start:mock &
+      
+    - name: Start Gateway
+      run: npm run start:gateway &
+      
+    - name: Start Worker
+      run: npx ts-node gateway/src/worker.ts &
+      
+    - name: Wait for services to be ready
+      run: sleep 15
+      
+    - name: Setup Tenants
+      run: |
+        curl -X POST http://localhost:3000/admin/tenants -H "Content-Type: application/json" -d '{"id":"tenantA","algorithm":"token_bucket","limit":500,"rateOrWindow":100}'
+        curl -X POST http://localhost:3000/admin/tenants -H "Content-Type: application/json" -d '{"id":"tenantB","algorithm":"sliding_window","limit":100,"rateOrWindow":1000}'
+        curl -X POST http://localhost:3000/admin/tenants -H "Content-Type: application/json" -d '{"id":"tenantC","algorithm":"token_bucket","limit":10,"rateOrWindow":1}'
+
+    - name: Run k6 load test
+      uses: grafana/k6-action@v0.3.0
+      with:
+        filename: load-tests/script.js
+        flags: --out json=results.json
