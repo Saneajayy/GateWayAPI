@@ -12,9 +12,9 @@ export const kafka = new Kafka({
   clientId: 'api-gateway',
   brokers: [brokerUrl],
   ...(useSSL && {
-    ssl: true,
+    ssl: { rejectUnauthorized: false },
     sasl: {
-      mechanism: 'scram-sha-256',
+      mechanism: (process.env.KAFKA_SASL_MECHANISM || 'scram-sha-256') as any,
       username: process.env.KAFKA_SASL_USERNAME!,
       password: process.env.KAFKA_SASL_PASSWORD!,
     },
