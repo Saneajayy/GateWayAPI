@@ -313,7 +313,7 @@
 
             <div style="margin-top: 20px; text-align: center;">
                 <h2 style="color: #1f2937; font-weight: 400; margin-bottom: 5px; font-size: 20px;">Interactive Simulation</h2>
-                <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px;">
+                <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px; max-width: 70%; margin-left: auto; margin-right: auto; line-height: 1.4;">
                     Execute the sequence to inject a sudden burst of load, simulate a downstream outage, and watch the
                     Circuit Breaker and Kafka Queue react in real-time on the graph.
                 </p>
@@ -595,7 +595,7 @@
                         fireDot('gw-ds');
                     } else if (currentCircuitState === 'OPEN') {
                         fireDot('gw-kafka');
-                        updateKafkaFill(Math.min(currentQueueDepth + 10, 5000));
+                        updateKafkaFill(Math.min(currentQueueDepth + 10, 1000));
                     }
                 }, dur1);
             }, 600); // 600ms constant interval for a beautiful steady stream
@@ -603,7 +603,7 @@
 
         function updateKafkaFill(depth) {
             currentQueueDepth = depth;
-            const maxExpected = 5000; 
+            const maxExpected = 1000; 
             const pct = Math.min((depth / maxExpected) * 100, 100);
             document.getElementById('kafka-fill').style.height = `${pct}%`;
         }

@@ -29,7 +29,7 @@ const cb = new CircuitBreaker(redisClient);
 const cbConfig = { windowMs: 10000, thresholdPercent: 50, minVolume: 5, cooldownMs: 10000 };
 
 const MAX_CONCURRENT_REQUESTS = 50;
-const MAX_QUEUE_DEPTH = 5000;
+const MAX_QUEUE_DEPTH = 1000;
 let inFlightRequests = 0;
 
 // Admin API

@@ -14,57 +14,57 @@ const DOWNSTREAM_URL = process.env.DOWNSTREAM_URL || 'http://localhost:4000';
 // Always-ready helper: ensures tenantA exists with the right limit.
 // Called both by the explicit "Configure Tenant" step AND by Reset,
 // so skipping step 1 never causes silent 403 rejections.
-async function configureTenant() {
-  const selfUrl = process.env.SELF_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
-  await axios.post(`${selfUrl}/admin/tenants`, {
-    id: 'tenantA',
-    algorithm: 'sliding_window',
-    limit: 3000,
-    rateOrWindow: 60000
-  });
-}
-
-export function setupDashboardRoutes(app: express.Application) {
-  app.use('/dashboard', express.static(path.join(__dirname, '../public')));
-  app.use('/dashboard/api', express.json());
-
-  // --- Terminal UI API Routes ---
-  
-  app.post('/dashboard/api/tenant', async (req, res) => {
-    try {
-      await configureTenant();
-      res.json({ message: 'Tenant configured successfully (Limit: 3000)' });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.post('/dashboard/api/fault', async (req, res) => {
-    try {
-      await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'failing' });
-      res.json({ message: 'Downstream mock set to failing' });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.post('/dashboard/api/recover', async (req, res) => {
-    try {
-      await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'healthy' });
-      res.json({ message: 'Downstream mock set to healthy' });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.post('/dashboard/api/load', (req, res) => {
-    // On Railway PORT is dynamic — use SELF_URL or fall back to localhost:PORT
+  async function configureTenant() {
     const selfUrl = process.env.SELF_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
-    const targetUrl = `${selfUrl}/api/test`;
-    const durationMs = 50000;
-    const intervalMs = 100;
-    const reqsPerInterval = 10; // 100 reqs/sec
-    let elapsed = 0;
+    await axios.post(`${selfUrl}/admin/tenants`, {
+      id: 'tenantA',
+      algorithm: 'sliding_window',
+      limit: 600, // Reduced from 3000 to match new 20 req/sec load
+      rateOrWindow: 60000
+    });
+  }
+
+  export function setupDashboardRoutes(app: express.Application) {
+    app.use('/dashboard', express.static(path.join(__dirname, '../public')));
+    app.use('/dashboard/api', express.json());
+
+    // --- Terminal UI API Routes ---
+    
+    app.post('/dashboard/api/tenant', async (req, res) => {
+      try {
+        await configureTenant();
+        res.json({ message: 'Tenant configured successfully (Limit: 600)' });
+      } catch (e: any) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    app.post('/dashboard/api/fault', async (req, res) => {
+      try {
+        await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'failing' });
+        res.json({ message: 'Downstream mock set to failing' });
+      } catch (e: any) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    app.post('/dashboard/api/recover', async (req, res) => {
+      try {
+        await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'healthy' });
+        res.json({ message: 'Downstream mock set to healthy' });
+      } catch (e: any) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    app.post('/dashboard/api/load', (req, res) => {
+      // On Railway PORT is dynamic — use SELF_URL or fall back to localhost:PORT
+      const selfUrl = process.env.SELF_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
+      const targetUrl = `${selfUrl}/api/test`;
+      const durationMs = 50000;
+      const intervalMs = 250; // Increased interval to ease CPU
+      const reqsPerInterval = 5; // 5 reqs / 250ms = 20 reqs/sec
+      let elapsed = 0;
 
     const intervalId = setInterval(() => {
       elapsed += intervalMs;
@@ -83,7 +83,7 @@ export function setupDashboardRoutes(app: express.Application) {
       Promise.allSettled(batch).catch(console.error);
     }, intervalMs);
 
-    res.json({ message: `Started sustained traffic simulation (100 rps for 50s)` });
+    res.json({ message: `Started sustained traffic simulation (20 rps for 50s)` });
   });
 
   app.post('/dashboard/api/reset', async (req, res) => {

@@ -21,7 +21,7 @@ const QUEUE_TIMEOUT_MS = 300000;
 // requests onto the downstream simultaneously on circuit CLOSE could re-crash
 // it immediately — defeating the entire purpose of the circuit breaker.
 // ─────────────────────────────────────────────────────────────────────────────
-const WORKER_CONCURRENCY = 5;
+const WORKER_CONCURRENCY = 1;
 
 class Semaphore {
   private slots: number;
