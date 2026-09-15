@@ -27,6 +27,9 @@ jobs:
     - name: Run Unit Tests
       run: npm test
 
+    - name: Wait for Docker services to initialize
+      run: sleep 30
+
     - name: Start Mock Downstream
       run: npm run start:mock &
       
@@ -36,8 +39,8 @@ jobs:
     - name: Start Worker
       run: npx ts-node gateway/src/worker.ts &
       
-    - name: Wait for services to be ready
-      run: sleep 15
+    - name: Wait for apps to bind ports
+      run: sleep 10
       
     - name: Setup Tenants
       run: |
