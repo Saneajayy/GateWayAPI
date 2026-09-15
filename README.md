@@ -4,6 +4,8 @@ A production-grade API gateway service in TypeScript (Node.js/Express) providing
 
 ## Architecture Diagram
 
+![Gateway Dashboard Simulator](architecture-dashboard.png)
+
 ```mermaid
 flowchart TD
     Client[Client] --> Gateway[API Gateway (Node.js)]
