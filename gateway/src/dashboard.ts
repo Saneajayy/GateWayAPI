@@ -89,13 +89,13 @@ export function setupDashboardRoutes(app: express.Application) {
   app.post('/dashboard/api/reset', async (req, res) => {
     try {
       // 1. Reset Mock Server to healthy
-      await axios.post('http://localhost:4000/admin/fault', { state: 'healthy' });
+      await axios.post(`${DOWNSTREAM_URL}/admin/fault`, { state: 'healthy' });
       
       // 2. Auto-configure the tenant so the simulation works even if step 1 was skipped
       await configureTenant().catch(e => console.error('[Reset] Could not configure tenant:', e.message));
       
       // 2. Clear ALL Redis state atomically
-      const baseKey = `cb:http://localhost:4000`;
+      const baseKey = `cb:${DOWNSTREAM_URL}`;
       const rateLimitKeys = await redisClient.keys('rate_limit:*');
       const keysToDelete = [
         `${baseKey}:state`,
