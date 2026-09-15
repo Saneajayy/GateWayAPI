@@ -1,4 +1,4 @@
-import { consumer } from './kafka';
+import { consumer, initKafka } from './kafka';
 import axios from 'axios';
 import { CircuitBreaker } from './circuit-breaker/CircuitBreaker';
 import { redisClient } from './redis';
