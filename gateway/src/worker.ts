@@ -111,6 +111,13 @@ async function processMessage(message: string) {
   }
 }
 
+import express from 'express';
+
+// Dummy HTTP server for Render health checks
+const app = express();
+app.get('/', (req, res) => res.send('Worker is healthy!'));
+const PORT = process.env.PORT || 3001;
+
 async function startWorker() {
   let retries = 10;
   while (retries > 0) {
@@ -129,6 +136,11 @@ async function startWorker() {
       });
 
       console.log(`Worker listening (concurrency: ${WORKER_CONCURRENCY})...`);
+      
+      // Start the dummy server for Render
+      app.listen(PORT, () => {
+        console.log(`Worker dummy health server running on port ${PORT}`);
+      });
       return;
     } catch (err) {
       console.error('Failed to start worker:', err);
